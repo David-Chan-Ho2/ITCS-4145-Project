@@ -183,11 +183,16 @@ void Print_vector(
    printf("\n");
 } /* Print_vector */
 
+/*-----------------------------------------------------------------
+ * Function:     Calculate_elapsed
+ * Purpose:      Calculate and display the CPU time used by a function
+ * In args:      start_time, end_time
+ */
 void Calculate_elapsed(clock_t start_time, clock_t end_time)
 {
    double cpu_time_used = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
    printf("Function took %f seconds to execute.\n", cpu_time_used);
-}
+} /* Calculate_elapsed */
 
 /*-------------------------------------------------------------------
  * Function:   Mat_vect_mult

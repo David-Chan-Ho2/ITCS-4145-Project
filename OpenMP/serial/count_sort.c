@@ -141,11 +141,16 @@ void Read_list(int a[], int n)
         scanf("%d", &a[i]);
 } /* Read_list */
 
+/*-----------------------------------------------------------------
+ * Function:     Calculate_elapsed
+ * Purpose:      Calculate and display the CPU time used by a function
+ * In args:      start_time, end_time
+ */
 void Calculate_elapsed(clock_t start_time, clock_t end_time)
 {
     double cpu_time_used = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
     printf("Function took %f seconds to execute.\n", cpu_time_used);
-}
+} /* Calculate_elapsed */
 
 /*-----------------------------------------------------------------
  * Function:     Count_sort
@@ -173,5 +178,4 @@ void Count_sort(int a[], int n)
 
     memcpy(a, temp, n * sizeof(int));
     free(temp);
-}
-/* Count_sort */
+} /* Count_sort */
