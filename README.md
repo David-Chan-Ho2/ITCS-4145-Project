@@ -31,10 +31,6 @@ ITCS-4145-Project/
 └── utils/
     ├── count_sort_generator.c    # Generates count sort input files
     ├── mat_vect_generator.c      # Generates matrix-vector input files
-    ├── run_count_sort.sh         # Build + benchmark script (OpenMP)
-    ├── run_mat_vect.sh           # Build + benchmark script (MPI)
-    ├── count_sort_results.txt    # Count sort timing results
-    └── mat_vect_results.txt      # Matrix-vector timing results
 ```
 
 ---
@@ -48,28 +44,69 @@ ITCS-4145-Project/
 
 ## Running the Benchmarks
 
-Both scripts compile the programs, run all input sizes, and write timing results to `utils/`.
-
-**Count Sort (OpenMP)**
+**OpenMP/serial**
 
 ```bash
-cd utils
-./run_count_sort.sh
-# Output: utils/count_sort_results.txt
+cd OpenMP/serial
+gcc -g -Wall -O2 -o count_sort count_sort.c
+
+# input file path is relative to OpenMP/serial/ (../../input-files/<file>)
+./count_sort input-1000.txt
 ```
 
-Runs serial and parallel (2, 4, 8 threads) against inputs of 1 000 – 10 000 integers.
-
-**Matrix-Vector Multiplication (MPI)**
+**OpenMP/parallel**
 
 ```bash
-cd utils
-./run_mat_vect.sh
-# Output: utils/mat_vect_results.txt
+cd OpenMP/parallel
+gcc -g -Wall -O2 -fopenmp -o count_sort_parallel count_sort_parallel.c
+
+# usage: ./count_sort_parallel <thread_count> <input_file>
+./count_sort_parallel 4 input-1000.txt
 ```
 
-Compiles and runs serial, row-block MPI, and column-block MPI against matrices of size 512 – 4 096. 
-Parallel runs use 2, 4, and 8 MPI processes.
+Replace `4` with 2 or 8; replace `input-1000.txt` with any file from `input-files/`.
+
+**MPI/serial**
+
+```bash
+cd MPI/serial
+gcc -g -Wall -O2 -o mat_vect_mult mat_vect_mult.c
+
+# input file path is relative to MPI/serial/ (../../input-files/<file>)
+./mat_vect_mult mat-vect-1024.txt
+```
+
+**MPI/parallel**
+
+The parallel programs take the matrix and vector as *separate* files.
+Split a combined input file first:
+
+```bash
+INPUT=input-files/mat-vect-1024.txt
+M=$(head -1 "$INPUT" | awk '{print $1}')
+
+head -n $((M + 1)) "$INPUT" > /tmp/mat.txt
+tail -n 1          "$INPUT" > /tmp/vec.txt
+```
+
+Row-block distribution:
+
+```bash
+cd MPI/parallel
+mpicc -g -Wall -O2 -o mpi_mat_vect_time mpi_mat_vect_time.c
+
+mpiexec -n 4 ./mpi_mat_vect_time /tmp/mat.txt /tmp/vec.txt
+```
+
+Column-block distribution:
+
+```bash
+mpicc -g -Wall -O2 -o mpi_col_mat_vect_time mpi_col_mat_vect_time.c
+
+mpiexec -n 4 ./mpi_col_mat_vect_time /tmp/mat.txt /tmp/vec.txt
+```
+
+Replace `-n 4` with 2 or 8; the process count must evenly divide the matrix dimension.
 
 ## Input File Formats
 
