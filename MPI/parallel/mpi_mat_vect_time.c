@@ -8,10 +8,11 @@
  *           It prints out the run-time.
  *
  * Compile:  mpicc -g -Wall -o mpi_mat_vect_time mpi_mat_vect_time.c
- * Run:      mpiexec -n <number of processes> ./mpi_mat_vect_time
+ * Run:      mpiexec -n <number of processes> ./mpi_mat_vect_time <mat_file> <vec_file>
  *
- * Input:    Dimensions of the matrix (m = number of rows, n
- *              = number of columns)
+ * Input:    mat_file: text file whose first two values are m and n
+ *                     followed by m*n doubles in row-major order
+ *           vec_file: text file containing n doubles for vector x
  * Output:   Elapsed time for execution of the multiplication
  *
  * Notes:     
@@ -28,16 +29,14 @@
 void Check_for_error(int local_ok, char fname[], char message[], 
       MPI_Comm comm);
 void Get_dims(int* m_p, int* local_m_p, int* n_p, int* local_n_p,
-      int my_rank, int comm_sz, MPI_Comm comm);
-void Allocate_arrays(double** local_A_pp, double** local_x_pp, 
-      double** local_y_pp, int local_m, int n, int local_n, 
+      char mat_file[], int my_rank, int comm_sz, MPI_Comm comm);
+void Allocate_arrays(double** local_A_pp, double** local_x_pp,
+      double** local_y_pp, int local_m, int n, int local_n,
       MPI_Comm comm);
-void Read_matrix(char prompt[], double local_A[], int m, int local_m, 
+void Read_matrix(char mat_file[], double local_A[], int m, int local_m,
       int n, int my_rank, MPI_Comm comm);
-void Read_vector(char prompt[], double local_vec[], int n, int local_n, 
+void Read_vector(char vec_file[], double local_vec[], int n, int local_n,
       int my_rank, MPI_Comm comm);
-void Generate_matrix(double local_A[], int local_m, int n);
-void Generate_vector(double local_x[], int local_n);
 void Print_matrix(char title[], double local_A[], int m, int local_m, 
       int n, int my_rank, MPI_Comm comm);
 void Print_vector(char title[], double local_vec[], int n,
@@ -47,7 +46,7 @@ void Mat_vect_mult(double local_A[], double local_x[],
       MPI_Comm comm);
 
 /*-------------------------------------------------------------------*/
-int main(void) {
+int main(int argc, char* argv[]) {
    double* local_A;
    double* local_x;
    double* local_y;
@@ -61,16 +60,20 @@ int main(void) {
    MPI_Comm_size(comm, &comm_sz);
    MPI_Comm_rank(comm, &my_rank);
 
-   Get_dims(&m, &local_m, &n, &local_n, my_rank, comm_sz, comm);
+   if (argc != 3) {
+      if (my_rank == 0)
+         fprintf(stderr, "Usage: %s <mat_file> <vec_file>\n", argv[0]);
+      MPI_Finalize();
+      return 1;
+   }
+
+   Get_dims(&m, &local_m, &n, &local_n, argv[1], my_rank, comm_sz, comm);
    Allocate_arrays(&local_A, &local_x, &local_y, local_m, n, local_n, comm);
-// Read_matrix("A", local_A, m, local_m, n, my_rank, comm);
-   srandom(my_rank);
-   Generate_matrix(local_A, local_m, n);
+   Read_matrix(argv[1], local_A, m, local_m, n, my_rank, comm);
 #  ifdef DEBUG
    Print_matrix("A", local_A, m, local_m, n, my_rank, comm);
 #  endif
-// Read_vector("x", local_x, n, local_n, my_rank, comm);
-   Generate_vector(local_x, local_n);
+   Read_vector(argv[2], local_x, n, local_n, my_rank, comm);
 #  ifdef DEBUG
    Print_vector("x", local_x, n, local_n, my_rank, comm);
 #  endif
@@ -122,28 +125,30 @@ void Check_for_error(
 
 /*-------------------------------------------------------------------*/
 void Get_dims(
-      int*      m_p        /* out */, 
+      int*      m_p        /* out */,
       int*      local_m_p  /* out */,
       int*      n_p        /* out */,
       int*      local_n_p  /* out */,
+      char      mat_file[] /* in  */,
       int       my_rank    /* in  */,
       int       comm_sz    /* in  */,
       MPI_Comm  comm       /* in  */) {
    int local_ok = 1;
 
    if (my_rank == 0) {
-      printf("Enter the number of rows\n");
-      scanf("%d", m_p);
-      printf("Enter the number of columns\n");
-      scanf("%d", n_p);
+      FILE* f = fopen(mat_file, "r");
+      if (f == NULL || fscanf(f, "%d %d", m_p, n_p) != 2) local_ok = 0;
+      if (f != NULL) fclose(f);
    }
+   Check_for_error(local_ok, "Get_dims",
+         "Can't read dimensions from matrix file", comm);
    MPI_Bcast(m_p, 1, MPI_INT, 0, comm);
    MPI_Bcast(n_p, 1, MPI_INT, 0, comm);
-   if (*m_p <= 0 || *n_p <= 0 || *m_p % comm_sz != 0 
+   if (*m_p <= 0 || *n_p <= 0 || *m_p % comm_sz != 0
          || *n_p % comm_sz != 0) local_ok = 0;
    Check_for_error(local_ok, "Get_dims",
-      "m and n must be positive and evenly divisible by comm_sz", 
-      comm);
+         "m and n must be positive and evenly divisible by comm_sz",
+         comm);
 
    *local_m_p = *m_p/comm_sz;
    *local_n_p = *n_p/comm_sz;
@@ -173,41 +178,46 @@ void Allocate_arrays(
 
 /*-------------------------------------------------------------------*/
 void Read_matrix(
-      char      prompt[]   /* in  */, 
-      double    local_A[]  /* out */, 
-      int       m          /* in  */, 
-      int       local_m    /* in  */, 
+      char      mat_file[] /* in  */,
+      double    local_A[]  /* out */,
+      int       m          /* in  */,
+      int       local_m    /* in  */,
       int       n          /* in  */,
       int       my_rank    /* in  */,
       MPI_Comm  comm       /* in  */) {
    double* A = NULL;
    int local_ok = 1;
-   int i, j;
+   int i, j, tmp_m, tmp_n;
 
    if (my_rank == 0) {
       A = malloc(m*n*sizeof(double));
       if (A == NULL) local_ok = 0;
       Check_for_error(local_ok, "Read_matrix",
             "Can't allocate temporary matrix", comm);
-      printf("Enter the matrix %s\n", prompt);
+      FILE* f = fopen(mat_file, "r");
+      if (f == NULL) local_ok = 0;
+      Check_for_error(local_ok, "Read_matrix", "Can't open matrix file", comm);
+      fscanf(f, "%d %d", &tmp_m, &tmp_n);   /* skip m, n header */
       for (i = 0; i < m; i++)
          for (j = 0; j < n; j++)
-            scanf("%lf", &A[i*n+j]);
-      MPI_Scatter(A, local_m*n, MPI_DOUBLE, 
+            fscanf(f, "%lf", &A[i*n+j]);
+      fclose(f);
+      MPI_Scatter(A, local_m*n, MPI_DOUBLE,
             local_A, local_m*n, MPI_DOUBLE, 0, comm);
       free(A);
    } else {
       Check_for_error(local_ok, "Read_matrix",
             "Can't allocate temporary matrix", comm);
-      MPI_Scatter(A, local_m*n, MPI_DOUBLE, 
+      Check_for_error(local_ok, "Read_matrix", "Can't open matrix file", comm);
+      MPI_Scatter(A, local_m*n, MPI_DOUBLE,
             local_A, local_m*n, MPI_DOUBLE, 0, comm);
    }
 }  /* Read_matrix */
 
 /*-------------------------------------------------------------------*/
 void Read_vector(
-      char      prompt[]     /* in  */, 
-      double    local_vec[]  /* out */, 
+      char      vec_file[]   /* in  */,
+      double    local_vec[]  /* out */,
       int       n            /* in  */,
       int       local_n      /* in  */,
       int       my_rank      /* in  */,
@@ -220,41 +230,23 @@ void Read_vector(
       if (vec == NULL) local_ok = 0;
       Check_for_error(local_ok, "Read_vector",
             "Can't allocate temporary vector", comm);
-      printf("Enter the vector %s\n", prompt);
+      FILE* f = fopen(vec_file, "r");
+      if (f == NULL) local_ok = 0;
+      Check_for_error(local_ok, "Read_vector", "Can't open vector file", comm);
       for (i = 0; i < n; i++)
-         scanf("%lf", &vec[i]);
+         fscanf(f, "%lf", &vec[i]);
+      fclose(f);
       MPI_Scatter(vec, local_n, MPI_DOUBLE,
             local_vec, local_n, MPI_DOUBLE, 0, comm);
       free(vec);
    } else {
       Check_for_error(local_ok, "Read_vector",
             "Can't allocate temporary vector", comm);
+      Check_for_error(local_ok, "Read_vector", "Can't open vector file", comm);
       MPI_Scatter(vec, local_n, MPI_DOUBLE,
             local_vec, local_n, MPI_DOUBLE, 0, comm);
    }
 }  /* Read_vector */
-
-/*-------------------------------------------------------------------*/
-void Generate_matrix(
-      double local_A[]  /* out */, 
-      int    local_m    /* in  */, 
-      int    n          /* in  */) {
-   int i, j;
-
-   for (i = 0; i < local_m; i++)
-      for (j = 0; j < n; j++) 
-         local_A[i*n + j] = ((double) random())/((double) RAND_MAX);
-}  /* Generate_matrix */
-
-/*-------------------------------------------------------------------*/
-void Generate_vector(
-      double local_x[] /* out */, 
-      int    local_n   /* in  */) {
-   int i;
-
-   for (i = 0; i < local_n; i++)
-      local_x[i] = ((double) random())/((double) RAND_MAX);
-}  /* Generate_vector */
 
 /*-------------------------------------------------------------------*/
 void Print_matrix(
