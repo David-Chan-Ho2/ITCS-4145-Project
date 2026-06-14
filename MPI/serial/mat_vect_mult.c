@@ -5,7 +5,8 @@
  *           matrix.
  *
  * Compile:  gcc -g -Wall -o mat_vect_mult mat_vect_mult.c
- * Run:      ./mat_vect_mult
+ * Usage:    ./mat_vect_mult <input_file>
+ *             input_file: text file with m, n, matrix A, vector x
  *
  * Input:    Dimensions of the matrix (m = number of rows, n
  *              = number of columns)
@@ -23,24 +24,41 @@
 #include <stdlib.h>
 #include <time.h>
 
-void Get_dims(int *m_p, int *n_p);
-void Read_matrix(char prompt[], double A[], int m, int n);
-void Read_vector(char prompt[], double x[], int n);
+void Usage(char *prog_name);
+void Get_dims(int *m_p, int *n_p, FILE *fp);
+void Read_matrix(char prompt[], double A[], int m, int n, FILE *fp);
+void Read_vector(char prompt[], double x[], int n, FILE *fp);
 void Print_matrix(char title[], double A[], int m, int n);
 void Print_vector(char title[], double y[], int m);
 void Calculate_elapsed(clock_t start_time, clock_t end_time);
 void Mat_vect_mult(double A[], double x[], double y[], int m, int n);
 
 /*-------------------------------------------------------------------*/
-int main(void)
+int main(int argc, char *argv[])
 {
    double *A = NULL;
    double *x = NULL;
    double *y = NULL;
    int m, n;
    clock_t start_time, end_time;
+   FILE *fp;
 
-   Get_dims(&m, &n);
+   if (argc != 2)
+   {
+      Usage(argv[0]);
+      exit(0);
+   }
+
+   char filepath[512];
+   snprintf(filepath, sizeof(filepath), "../../input-files/%s", argv[1]);
+   fp = fopen(filepath, "r");
+   if (fp == NULL)
+   {
+      fprintf(stderr, "Error: cannot open file %s\n", filepath);
+      exit(1);
+   }
+
+   Get_dims(&m, &n, fp);
    A = malloc(m * n * sizeof(double));
    x = malloc(n * sizeof(double));
    y = malloc(m * sizeof(double));
@@ -49,14 +67,16 @@ int main(void)
       fprintf(stderr, "Can't allocate storage\n");
       exit(-1);
    }
-   Read_matrix("A", A, m, n);
+   Read_matrix("A", A, m, n, fp);
 #ifdef DEBUG
    Print_matrix("A", A, m, n);
 #endif
-   Read_vector("x", x, n);
+   Read_vector("x", x, n, fp);
 #ifdef DEBUG
    Print_vector("x", x, n);
 #endif
+
+   fclose(fp);
 
    start_time = clock();
    Mat_vect_mult(A, x, y, m, n);
@@ -81,14 +101,20 @@ int main(void)
  * Errors:     If one of the dimensions isn't positive, the program
  *             prints an error and quits
  */
+void Usage(char *prog_name)
+{
+   fprintf(stderr, "usage:   %s <input_file>\n", prog_name);
+   fprintf(stderr, "   input_file: text file with m, n, matrix A, vector x\n");
+} /* Usage */
+
+/*-------------------------------------------------------------------*/
 void Get_dims(
     int *m_p /* out */,
-    int *n_p /* out */)
+    int *n_p /* out */,
+    FILE *fp /* in  */)
 {
-   printf("Enter the number of rows\n");
-   scanf("%d", m_p);
-   printf("Enter the number of columns\n");
-   scanf("%d", n_p);
+   fscanf(fp, "%d", m_p);
+   fscanf(fp, "%d", n_p);
 
    if (*m_p <= 0 || *n_p <= 0)
    {
@@ -109,33 +135,27 @@ void Read_matrix(
     char prompt[] /* in  */,
     double A[] /* out */,
     int m /* in  */,
-    int n /* in  */)
+    int n /* in  */,
+    FILE *fp /* in  */)
 {
    int i, j;
 
-   printf("Enter the matrix %s\n", prompt);
    for (i = 0; i < m; i++)
       for (j = 0; j < n; j++)
-         scanf("%lf", &A[i * n + j]);
+         fscanf(fp, "%lf", &A[i * n + j]);
 } /* Read_matrix */
 
-/*-------------------------------------------------------------------
- * Function:   Read_matrix
- * Purpose:    Read a vector from stdin
- * In args:    prompt:  description of matrix
- *             n:       order of matrix
- * Out arg:    x:       the vector being read in
- */
+/*-------------------------------------------------------------------*/
 void Read_vector(
     char prompt[] /* in  */,
     double x[] /* out */,
-    int n /* in  */)
+    int n /* in  */,
+    FILE *fp /* in  */)
 {
    int i;
 
-   printf("Enter the vector %s\n", prompt);
    for (i = 0; i < n; i++)
-      scanf("%lf", &x[i]);
+      fscanf(fp, "%lf", &x[i]);
 } /* Read_vector */
 
 /*-------------------------------------------------------------------
