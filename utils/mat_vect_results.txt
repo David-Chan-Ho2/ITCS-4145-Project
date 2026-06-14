@@ -1,0 +1,40 @@
+Results - Matrix-Vector Multiplication Benchmark
+Generated: 2026-06-11 20:16:08
+=================================================
+
+Input: mat-vect-1024.txt (1024x1024)
+  Serial:                Function took 0.001523 seconds to execute.
+  Row-block (2 procs):   Elapsed time = 1.141000e-03
+  Col-block (2 procs):   Elapsed time = 6.620000e-04 seconds
+  Row-block (4 procs):   Elapsed time = 7.140000e-04
+  Col-block (4 procs):   Elapsed time = 6.170000e-04 seconds
+  Row-block (8 procs):   Elapsed time = 6.200000e-04
+  Col-block (8 procs):   Elapsed time = 3.149000e-03 seconds
+
+Input: mat-vect-2048.txt (2048x2048)
+  Serial:                Function took 0.007028 seconds to execute.
+  Row-block (2 procs):   Elapsed time = 3.735000e-03
+  Col-block (2 procs):   Elapsed time = 4.262000e-03 seconds
+  Row-block (4 procs):   Elapsed time = 1.943000e-03
+  Col-block (4 procs):   Elapsed time = 2.221000e-03 seconds
+  Row-block (8 procs):   Elapsed time = 1.540000e-03
+  Col-block (8 procs):   Elapsed time = 1.648000e-03 seconds
+
+Input: mat-vect-4096.txt (4096x4096)
+  Serial:                Function took 0.046846 seconds to execute.
+  Row-block (2 procs):   Elapsed time = 1.919000e-02
+  Col-block (2 procs):   Elapsed time = 5.166400e-02 seconds
+  Row-block (4 procs):   Elapsed time = 2.448100e-02
+  Col-block (4 procs):   Elapsed time = 1.444000e-02 seconds
+  Row-block (8 procs):   Elapsed time = 6.220000e-03
+  Col-block (8 procs):   Elapsed time = 6.575000e-03 seconds
+
+Input: mat-vect-512.txt (512x512)
+  Serial:                Function took 0.000293 seconds to execute.
+  Row-block (2 procs):   Elapsed time = 1.720000e-04
+  Col-block (2 procs):   Elapsed time = 1.520000e-04 seconds
+  Row-block (4 procs):   Elapsed time = 1.560000e-04
+  Col-block (4 procs):   Elapsed time = 1.460000e-04 seconds
+  Row-block (8 procs):   Elapsed time = 1.500000e-04
+  Col-block (8 procs):   Elapsed time = 1.020000e-04 seconds
+
