@@ -1,4 +1,4 @@
-# ITCS-4145 Parallel Programming — Project
+# Parallel Computing Benchmarks
 
 Benchmarks two classic algorithms under two different parallel programming models:
 
